@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atividades</title>
+  <script src="./activities/script.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 5px;
+    }
+
+    .calendar div {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: top;
+      position: relative;
+      display: flex;
+      gap: 5px;
+      flex-direction: column;
+      /* Para posicionar as divs internas */
+    }
+
+    .calendar div span {
+      font-size: 12px;
+      color: #333;
+    }
+
+    .calendar .header {
+      background-color: #f4f4f4;
+      font-weight: bold;
+      min-height: auto;
+    }
+
+    .highlight-start {
+      background-color: #a3d5a3;
+    }
+
+    .highlight-end {
+      background-color: #f5a9a9;
+    }
+
+    .highlight-holiday {
+      background-color: #ccc;
+      /* Cor para feriados */
+    }
+
+    .activity {
+      position: absolute;
+      /* Para sobrepor as atividades nas células */
+      width: 100%;
+      text-align: left;
+      /* Alinhando o texto à esquerda */
+      padding: 2px;
+      font-size: 12px;
+      box-sizing: border-box;
+      /* Para incluir padding na largura total */
+    }
+
+    /* Estilo do modal */
+    .modal {
+      display: none;
+      /* Oculta o modal inicialmente */
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-content {
+      background-color: #fff;
+      margin: 15% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 300px;
+      border-radius: 5px;
+    }
+
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .close:hover,
+    .close:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <h1>Atividades</h1>
+    <div id="calendar" class="calendar">
+      <!-- Conteúdo gerado dinamicamente -->
+    </div>
+  </div>
+  <script>
+    (async function() {
+      await loadActivities();
+      init();
+    })();
+
+    function init() {
+      let data = calculateActivityDates();
+
+      const startDate = new Date(Math.min(...data.map(a => new Date(a.start_date))));
+      const endDate = new Date(Math.max(...data.map(a => new Date(a.end_date))));
+
+      function generateCalendar(startDate, endDate) {
+        const calendar = document.getElementById('calendar');
+        calendar.innerHTML = '';
+
+        const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        const day = new Date(startDate);
+        const dayEnd = new Date(endDate);
+        const startDay = day.getDay();
+
+        // Cabeçalho dos dias da semana
+        daysOfWeek.forEach(day => {
+          const dayHeader = document.createElement('div');
+          dayHeader.classList.add('header');
+          dayHeader.innerText = day;
+          calendar.appendChild(dayHeader);
+        });
+
+        // Espaços em branco para os dias anteriores ao início do intervalo
+        for (let i = 0; i < startDay; i++) {
+          const blank = document.createElement('div');
+          calendar.appendChild(blank);
+        }
+
+        // Dias do intervalo
+        while (day <= dayEnd) {
+          const date = day.toISOString().split('T')[0];
+          const dayCell = document.createElement('div');
+
+          const dayDiv = document.createElement('span');
+          dayDiv.innerText = day.getDate();
+          dayCell.appendChild(dayDiv);
+
+          // Verifica se é feriado e aplica a classe
+          const holiday = getHoliday(day);
+          if (holiday.length > 0) {
+            const holidayDiv = document.createElement('div');
+            dayCell.classList.add('highlight-holiday');
+            holidayDiv.classList.add('activity', 'highlight-holiday');
+            holidayDiv.innerText = holiday[0].name;
+            dayCell.appendChild(holidayDiv);
+          }
+
+          data.forEach(activity => {
+            // Verificar se a data de início ou fim da atividade é igual à data do dia atual
+            if (activity.start_date === date) {
+              const activityDiv = document.createElement('div');
+              activityDiv.classList.add('activity', 'highlight-start');
+              activityDiv.innerText = `S: ${activity.name}`;
+              dayCell.appendChild(activityDiv);
+            }
+            if (activity.end_date === date) {
+              const activityDiv = document.createElement('div');
+              activityDiv.classList.add('activity', 'highlight-end');
+              activityDiv.innerText = `E: ${activity.name}`;
+              dayCell.appendChild(activityDiv);
+            }
+          });
+
+          calendar.appendChild(dayCell);
+          day.setDate(day.getDate() + 1); // Avança para o próximo dia
+        }
+      }
+
+      generateCalendar(startDate, endDate);
+    }
+  </script>
+</body>
+
+</html>

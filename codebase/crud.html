@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRUD Inline</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f7fa;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            background-color: #fff;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #007bff;
+            color: #fff;
+            text-align: left;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        input[type="text"],
+        input[type="date"],
+        input[type="number"],
+        select {
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 8px;
+            width: 150px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="date"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+
+        input[type="checkbox"] {
+            transform: scale(1.2);
+            margin: 0;
+        }
+
+        button {
+            background-color: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        .add-button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #007bff;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .add-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+    <script src="./activities/script.js"></script>
+</head>
+
+<body>
+    <h1>Atividades</h1>
+    <table id="crudTable">
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Data de Início</th>
+                <th>Duração</th>
+                <th>Dias atrasado</th>
+                <th>Parent</th>
+                <th>Trabalha no Sábado?</th>
+                <th>Trabalha no Domingo?</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <button class="add-button" onclick="addRow()">Adicionar Passo</button>
+
+    <script>
+
+        (async function() {
+            await loadActivities();
+            
+            function updateData(id, key, value) {
+                const item = activities.find(d => d.id === id);
+                if (item) {
+                    item[key] = value;
+                    renderTable();
+                }
+            }
+
+            function renderTable() {
+                const tableBody = document.querySelector("#crudTable tbody");
+                tableBody.innerHTML = "";
+
+                activities.forEach(item => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                    <td><input type="text" value="${item.name}" onchange="updateData(${item.id}, 'name', this.value)"></td>
+                    <td><input type="date" value="${item.start_date || ''}" onchange="updateData(${item.id}, 'start_date', this.value)"></td>
+                    <td><input type="number" value="${item.duration}" onchange="updateData(${item.id}, 'duration', this.value)"></td>
+                    <td><input type="number" value="${item.late}" onchange="updateData(${item.id}, 'late', this.value)"></td>
+                    <td>
+                        <select onchange="updateData(${item.id}, 'dependent_id', this.value)">
+                            <option value="">Nenhum</option>
+                            ${activities.filter(d => d.id !== item.id).map(dependent => 
+                                `<option value="${dependent.id}" ${item.dependent_id == dependent.id ? 'selected' : ''}>${dependent.name}</option>`
+                            ).join('')}
+                        </select>
+                    </td>
+                    <td><input type="checkbox" ${item.workOnSaturday ? 'checked' : ''} onchange="updateData(${item.id}, 'workOnSaturday', this.checked)"></td>
+                    <td><input type="checkbox" ${item.workOnSunday ? 'checked' : ''} onchange="updateData(${item.id}, 'workOnSunday', this.checked)"></td>
+                    <td><button onclick="deleteRow(${item.id})">Excluir</button></td>
+                `;
+                    tableBody.appendChild(row);
+                });
+            }
+
+            function addRow() {
+                const newId = activities.length > 0 ? Math.max(...activities.map(item => item.id)) + 1 : 1;
+                const newItem = {
+                    id: newId,
+                    name: "Novo Passo",
+                    start_date: null,
+                    end_date: null,
+                    duration: 0,
+                    late: 0,
+                    dependent_id: null,
+                    workOnSaturday: false,
+                    workOnSunday: false
+                };
+                activities.push(newItem);
+                renderTable();
+            }
+
+            function deleteRow(id) {
+                const index = activities.findIndex(item => item.id === id);
+                if (index > -1) {
+                    activities.splice(index, 1);
+                    renderTable();
+                }
+            }
+
+            // Renderiza a tabela inicialmente
+            renderTable();
+        })();
+    </script>
+</body>
+
+</html>
