@@ -338,6 +338,10 @@ const repository = {
 };
 
 const service = {
+  workOnHoliday: false,
+  workOnSaturday: false,
+  workOnSunday: false,
+  
   maxDate: function () {
     return new Date(
       Math.max(...repository.activities.map((a) => new Date(a.end_date)))
@@ -396,8 +400,8 @@ const service = {
         a.start_date = this.getNextDateSkippingWeekends(
           parent.end_date,
           1,
-          a.workOnSaturday,
-          a.workOnSunday,
+          this.workOnSaturday,
+          this.workOnSunday,
           a.workOnHoliday
         );
       }
@@ -406,8 +410,8 @@ const service = {
         a.end_date = this.getNextDateSkippingWeekends(
           a.start_date,
           a.duration + a.late - 1,
-          a.workOnSaturday,
-          a.workOnSunday,
+          this.workOnSaturday,
+          this.workOnSunday,
           a.workOnHoliday
         );
       }
@@ -467,4 +471,10 @@ const service = {
     const child = repository.getOneChild(item.id);
     return !child || child.start_date >= item.end_date.toFormattedDateString();
   },
+  download() {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(repository.activities)], { type: 'application/json' }));
+    a.download = 'data.json';
+    a.click();
+  }
 };

@@ -35,7 +35,27 @@ body {
   border-radius: 0.25rem;
   transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
+/* Botão para exportar */
+.btn-export {
+  background-color: #28a745; /* Cor verde */
+  border-color: #28a745;
+}
 
+.btn-export:hover {
+  background-color: #218838; /* Cor verde escura ao passar o mouse */
+  border-color: #1e7e34;
+}
+
+/* Botão para importar */
+.btn-import {
+  background-color: #17a2b8; /* Cor azul claro */
+  border-color: #17a2b8;
+}
+
+.btn-import:hover {
+  background-color: #138496; /* Cor azul escura ao passar o mouse */
+  border-color: #117a8b;
+}
 /* Estilo para o botão ao passar o mouse */
 .btn:hover {
   background-color: #2980b9;
@@ -86,4 +106,59 @@ body {
   color: black;
   text-decoration: none;
   cursor: pointer;
+}
+
+
+
+/* Estilo quando o botão está selecionado */
+.btn.checked {
+    background-color: #28a745; /* Cor quando selecionado */
+    border-color: #28a745;
+}
+
+/* Estilo do container dos checkboxes */
+.options {
+    display: flex;
+    gap: 20px;
+    justify-content: center; /* Centraliza os checkboxes */
+}
+
+.toggle-button {
+  display: flex;
+  align-items: center;
+}
+/* Oculta o input checkbox */
+.toggle-input {
+    display: none;
+}
+
+/* Estilo do checkbox estilizado */
+.custom-checkbox {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #007bff;
+    border-radius: 4px;
+    margin-right: 8px;
+    position: relative;
+    cursor: pointer;
+    vertical-align: middle; /* Alinhamento vertical */
+}
+
+/* Marca o checkbox quando checked */
+.custom-checkbox.checked {
+    background-color: #007bff; /* Cor de fundo quando selecionado */
+}
+
+/* Ícone de checkmark */
+.custom-checkbox.checked::after {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
 }

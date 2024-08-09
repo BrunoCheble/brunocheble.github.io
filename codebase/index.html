@@ -7,6 +7,10 @@
   <script src="dhtmlxgantt.js"></script>
   <script src="./activities/script.js"></script>
 
+  <link href="./fontawesome/css/fontawesome.css" rel="stylesheet" />
+  <link href="./fontawesome/css/brands.css" rel="stylesheet" />
+  <link href="./fontawesome/css/solid.css" rel="stylesheet" />
+
   <link rel="stylesheet" href="dhtmlxgantt.css?v=8.0.6">
   <link rel="stylesheet" href="./activities/styles.css">
   <title>Document</title>
@@ -80,9 +84,30 @@
   </div>
   <div style="padding: 10px; background-color: #f5f5f5; display: flex; justify-content: space-between;">
     <div>
-      <button class="btn" disabled id="btnBack">Voltar</button>
+      <button class="btn" disabled id="btnBack"><i class="fas fa-arrow-left"></i></button>
       <span id="page_chart"></span>
-      <button class="btn" disabled id="btnNext">Avançar</button>
+      <button class="btn" disabled id="btnNext"><i class="fas fa-arrow-right"></i></button>
+    </div>
+    
+<div class="options">
+    <label class="toggle-button">
+        <div class="custom-checkbox" id="saturdayCheckbox"></div>
+        Trabalha Sábado
+        <input type="checkbox" class="toggle-input" id="saturdayToggle">
+    </label>
+    <label class="toggle-button">
+        <div class="custom-checkbox" id="sundayCheckbox"></div>
+        Trabalha Domingo
+        <input type="checkbox" class="toggle-input" id="sundayToggle">
+    </label>
+</div>
+    <div style="display: flex; gap: 20px">
+      <button class="btn btn-export" id="btnExport">
+        <i class="fas fa-file-export"></i> Exportar
+      </button>
+      <button class="btn btn-import" id="btnImport">
+        <i class="fas fa-file-import"></i> Importar</button>
+      <input type="file" id="importInput" accept=".json" style="display: none;">
     </div>
   </div>
   <div id="gantt_here" style='width:100%; height:100%;'></div>
@@ -128,7 +153,7 @@
 
         const max_date = service.maxDate();
         const min_date = service.minDate();
-        
+
         data.push({
           id: 1000,
           text: "Project",
@@ -161,7 +186,7 @@
       }
 
       function beforeGanttLoad() {
-        gantt.config.grid_width = 500;
+        gantt.config.grid_width = 400;
         gantt.config.add_column = false;
 
         gantt.templates.task_class = function(start, end, task) {
@@ -282,6 +307,26 @@
             map_to: "auto"
           },
         ];
+
+        // Template para formatar a coluna start_date no grid
+        gantt.templates.task_cell = function (item, column) {
+          console.log(column)
+            if (column.id === "start_date") {
+                return formatDate(item.start_date);
+            }
+            return item[column.id]; // Retorna o valor padrão para outras colunas
+        };
+
+        // Define o formato da data para a coluna no grid
+        gantt.config.columns = [
+          {name:"text",       label:"Task name",width: '*', min_width: 150, max_width:500, tree:true },
+          {name:"start_date", label:"Start date", align:"center", template:function(obj) {
+            return obj.start_date.toFormattedDate();
+          } },
+          {name:"duration",   label:"Duration",   align:"center" },
+          {name:"add",        label:"",           width:44 }
+        ];
+
       }
 
       function afterGanttLoad() {
@@ -397,7 +442,7 @@
 
         if (!service.validateChangeByParent(item)) {
           const parent = repository.getOne(item.parent);
-          alertGantt(`ATENÇÃO!<br> A tarefa <b>${item.text}</b> não deve começar antes de <b>${new Date(parent.end_date).toFormattedDate()}</b>!`, "error", -1);
+          alertGantt(`ATENÇÃO!<br> A tarefa <b>${item.text}</b> não deve começar antes de <b>${new Date(parent.start_date).toFormattedDate()}</b>!`, "error", -1);
         }
 
         if (!service.validateChangeByChild(item)) {
@@ -432,6 +477,60 @@
         navigateHistory('next');
       });
 
+      document.querySelector("#btnExport").addEventListener("click", function() {
+        service.download();
+      });
+
+      document.getElementById('btnImport').addEventListener('click', function() {
+        document.getElementById('importInput').click();
+      });
+
+      document.getElementById('importInput').addEventListener('change', function(event) {
+        showLoading(3000);
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+          try {
+            console.log(JSON.parse(e.target.result));
+            repository.load(JSON.parse(e.target.result));
+            await repository.saveAllAjax();
+            window.location.reload();
+          } catch (error) {
+            console.error("Erro ao ler o arquivo JSON:", error);
+          }
+        };
+        reader.readAsText(file);
+
+        // Limpa o valor do input para garantir que o evento 'change' seja disparado novamente
+        event.target.value = '';
+      });
+
+      // Função para alternar o estado do checkbox
+      function toggleCheckbox(checkboxId, checkboxElement) {
+          const checkbox = document.getElementById(checkboxId);
+          checkbox.checked = !checkbox.checked; // Alterna o estado checked
+          checkboxElement.classList.toggle('checked'); // Usa toggle
+
+          if (checkboxId === 'saturdayToggle') {
+              service.workOnSaturday = !service.workOnSaturday;
+          }
+          else {
+              service.workOnSunday = !service.workOnSunday;
+          } 
+          updateGannttData(checkbox.checked);
+      }
+
+      // Adiciona os ouvintes de eventos para os checkboxes estilizados
+      document.getElementById('saturdayCheckbox').onclick = function () {
+          toggleCheckbox('saturdayToggle', this);
+      };
+
+      document.getElementById('sundayCheckbox').onclick = function () {
+          toggleCheckbox('sundayToggle', this);
+      };
+
       function navigateHistory(direction) {
         //showLoading(200);
         if (direction === 'back' && bkpService.index > 0) {
@@ -443,7 +542,7 @@
         }
 
         repository.load(bkpService.get(bkpService.index));
-        
+
         updateGannttData(false);
       }
     }
