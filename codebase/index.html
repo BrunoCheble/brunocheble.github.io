@@ -137,7 +137,7 @@
         });
       }
 
-      async function updateGannttData(saveAjax = true) {
+      async function updateGannttData(saveAjax = true, updateNavigator = true) {
         const data = service.getFullActivityList().map(a => {
           return {
             id: a.id,
@@ -182,7 +182,9 @@
           service.saveBkp();
         }
 
-        updateNavigator();
+        if (updateNavigator) {
+          updateNavigator();          
+        }
       }
 
       function beforeGanttLoad() {
@@ -362,7 +364,7 @@
 
       afterGanttLoad();
 
-      updateGannttData(false);
+      updateGannttData(false, false);
 
       gantt.attachEvent("onTaskDurationChange", function(id, new_duration) {
         console.log("A duração da atividade foi alterada");
@@ -519,7 +521,7 @@
           else {
               service.workOnSunday = !service.workOnSunday;
           } 
-          updateGannttData(checkbox.checked);
+          updateGannttData(false, false);
       }
 
       // Adiciona os ouvintes de eventos para os checkboxes estilizados
