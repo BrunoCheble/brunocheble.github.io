@@ -36,6 +36,24 @@ body {
   transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
+/* Estilo para o botão ao passar o mouse */
+.btn:hover {
+  background-color: #2980b9;
+}
+
+/* Estilo para o botão desabilitado */
+.btn:disabled {
+  background-color: #bdc3c7;
+  color: #7f8c8d;
+  cursor: not-allowed;
+  opacity: 0.65; /* Torna o botão mais translúcido */
+}
+
+/* Adiciona um efeito de 'não permitido' ao cursor */
+.btn:disabled:hover {
+  background-color: #bdc3c7; /* Mantém a cor de fundo ao passar o mouse */
+}
+
 .modal {
   display: none;
   position: fixed;

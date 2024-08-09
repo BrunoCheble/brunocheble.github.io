@@ -11,27 +11,102 @@
   <link rel="stylesheet" href="./activities/styles.css">
   <title>Document</title>
   <style>
-    .gantt_task_progress_drag, .gantt_task_drag.task_left.task_start_date, .gantt_task_drag.task_right.task_end_date {
-      display: none!important;
+    .gantt_task_progress_drag,
+    .gantt_task_drag.task_left.task_start_date,
+    .gantt_task_drag.task_right.task_end_date,
+    .gantt_link_control.task_left.task_start_date,
+    .gantt_link_control.task_right.task_end_date {
+      display: none !important;
     }
+
+    .custom-task-background .gantt_task_content {
+      font-weight: bold;
+      color: #000;
+    }
+
+    .gantt-success {
+      background-color: #1bd829 !important;
+      border: 1px solid #a3d5a3 !important;
+    }
+
+    .gantt-success div {
+      background-color: #1bd829 !important;
+      border: 1px solid #a3d5a3 !important;
+    }
+
+    /* Estilo para o overlay de carregamento */
+    .spinner-overlay {
+      visibility: hidden;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(255, 255, 255, 0.8);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: all;
+      /* Garante que o overlay bloqueie as interações */
+    }
+
+    .spinner {
+      border: 8px solid #f3f3f3;
+      border-top: 8px solid #3498db;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
   </style>
 </head>
 
 <body>
+  <!-- Spinner de carregamento -->
+  <div class="spinner-overlay" id="loadingSpinner">
+    <div class="spinner"></div>
+  </div>
   <div style="padding: 10px; background-color: #f5f5f5; display: flex; justify-content: space-between;">
     <div>
-    <button class="btn" id="btnBack">Voltar</button>
-    <span id="page_chart"></span>
-    <button class="btn" id="btnNext">Avançar</button>
+      <button class="btn" disabled id="btnBack">Voltar</button>
+      <span id="page_chart"></span>
+      <button class="btn" disabled id="btnNext">Avançar</button>
     </div>
-    <button class="btn" id="btnSave">Guardar</button>
+    <button class="btn" disabled id="btnSave">Guardar</button>
   </div>
   <div id="gantt_here" style='width:100%; height:100%;'></div>
 
   <script>
     function init() {
-      function alertGantt(text, type, expire) {
+      function updateNavigator() {
+        // controlar o disable dos botoes de acordo com o index no bkp_activities
+        document.getElementById('btnBack').disabled = index_chart === 0;
+        document.getElementById('btnNext').disabled = index_chart === bkp_activities.length - 1;
+        document.querySelector("#page_chart").innerHTML = `${index_chart+1}/${bkp_activities.length}`;
+      }
 
+      function showLoading(duration = 500) {
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        loadingSpinner.style.visibility = 'visible'; // Mostra o overlay
+
+        setTimeout(function() {
+          loadingSpinner.style.visibility = 'hidden'; // Esconde após a duração
+        }, duration);
+      }
+
+      function alertGantt(text, type, expire) {
         gantt.message({
           text,
           type,
@@ -39,33 +114,33 @@
         });
       }
 
-      function updateGannttData() {
-
-        const data = calculateActivityDates(activities).map(a => {
+      async function updateGannttData(saveAjax = true) {
+        const data = service.getFullActivityList().map(a => {
           return {
             id: a.id,
             text: a.name,
-            start_date: a.start_date,
-            duration: calculateDaysBetweenDates(a.start_date, a.end_date) + 1,
-            parent: a.dependent_id ? a.dependent_id : 1000,
+            start_date: new Date(a.start_date),
+            duration: service.calculateDaysBetweenDates(new Date(a.start_date), new Date(a.end_date)) + 1,
+            parent: service.getParentId(a.dependent_id),
             progress: a.progress,
             open: true,
+            critical_path: a.critical_path,
           }
         })
 
-        const startDate = new Date(Math.min(...activities.map(a => new Date(a.start_date))));
-        const endDate = new Date(Math.max(...activities.map(a => new Date(a.end_date))));
-
+        const max_date = service.maxDate();
+        const min_date = service.minDate();
+        
         data.push({
           id: 1000,
           text: "Project",
-          start_date: activities[0].start_date,
-          duration: calculateDaysBetweenDates(startDate, endDate) + 1,
+          start_date: min_date,
+          duration: service.calculateDaysBetweenDates(max_date, min_date) + 1,
           open: true,
           type: "project"
         })
 
-        links = data.map(a => {
+        links = data.filter(a => service.hasParentValid(a.parent)).map(a => {
           return {
             id: a.id,
             source: a.parent,
@@ -78,29 +153,33 @@
           data,
           links
         });
+
+        if (saveAjax) {
+          await repository.saveAllAjax();
+        }
       }
 
       function beforeGanttLoad() {
-
-        gantt.config.grid_width = 380;
+        gantt.config.grid_width = 500;
         gantt.config.add_column = false;
-        /*gantt.config.columns = [
-          {name: "text", label: "Task name", tree: true, width: '*'},
-          {
-            name: "progress", label: "Progress", width: 80, align: "center",
-            template: function (item) {
-              if (item.progress >= 1)
-                return "Complete";
-              if (item.progress == 0)
-                return "Not started";
-              return Math.round(item.progress * 100) + "%";
-            }
-          },
-          {name: "duration", label: "Duration",  width: 80, align: "center"},
-        ];*/
-        
+
+        gantt.templates.task_class = function(start, end, task) {
+          return task.critical_path == 1 ? "custom-task-background" : ""; // Retorna a classe personalizada        
+        };
+
         gantt.config.date_format = "%Y-%m-%d %H:%i";
         gantt.config.start_on_monday = false;
+
+        gantt.templates.tooltip_text = function(start, end, task) {
+          const activity = repository.getOne(task.id);
+          const work_time = activity?.duration ? activity.duration : task.duration;
+          const formatDate = gantt.date.date_to_str("%d/%m/%Y");
+          return `
+              <b>Nome:</b> ${task.text}<br/>
+              <b>Início / Fim</b> ${formatDate(start)} - ${formatDate(end)}<br/>
+              <b>Tempo de trabalho:</b> ${work_time} dia(s)
+          `;
+        };
 
         gantt.plugins({
           marker: true,
@@ -117,7 +196,7 @@
         });
 
         var dateToStr = gantt.date.date_to_str(gantt.config.task_date, "pt-BR");
-        var today = new Date(2024, 8, 5);
+        var today = new Date();
 
         gantt.addMarker({
           start_date: today,
@@ -125,6 +204,7 @@
           text: "Today",
           title: "Today: " + dateToStr(today)
         });
+
         gantt.locale.labels["section_parent"] = "Parent task";
         gantt.locale.labels["section_progress"] = "Progress";
 
@@ -145,18 +225,54 @@
             }
           },
           {
-            name: "progress", height: 22, map_to: "progress", type: "select", options: [
-              {key: "0", label: "Not started"},
-              {key: "0.1", label: "10%"},
-              {key: "0.2", label: "20%"},
-              {key: "0.3", label: "30%"},
-              {key: "0.4", label: "40%"},
-              {key: "0.5", label: "50%"},
-              {key: "0.6", label: "60%"},
-              {key: "0.7", label: "70%"},
-              {key: "0.8", label: "80%"},
-              {key: "0.9", label: "90%"},
-              {key: "1", label: "Complete"}
+            name: "progress",
+            height: 22,
+            map_to: "progress",
+            type: "select",
+            options: [{
+                key: "0",
+                label: "Not started"
+              },
+              {
+                key: "0.1",
+                label: "10%"
+              },
+              {
+                key: "0.2",
+                label: "20%"
+              },
+              {
+                key: "0.3",
+                label: "30%"
+              },
+              {
+                key: "0.4",
+                label: "40%"
+              },
+              {
+                key: "0.5",
+                label: "50%"
+              },
+              {
+                key: "0.6",
+                label: "60%"
+              },
+              {
+                key: "0.7",
+                label: "70%"
+              },
+              {
+                key: "0.8",
+                label: "80%"
+              },
+              {
+                key: "0.9",
+                label: "90%"
+              },
+              {
+                key: "1",
+                label: "Complete"
+              }
             ]
           },
           {
@@ -200,16 +316,16 @@
 
       afterGanttLoad();
 
-      updateGannttData();
+      updateGannttData(false);
 
       gantt.attachEvent("onTaskDurationChange", function(id, new_duration) {
         console.log("A duração da atividade foi alterada");
         console.log("ID da atividade:", id);
         console.log("Nova duração:", new_duration);
-    });
+      });
       // Evento que dispara após abrir o lightbox
       gantt.attachEvent("onLightbox", function(task_id) {
-        const activity = getActivity(task_id);
+        const activity = repository.getOne(task_id);
 
         // Custom logic to run after the lightbox is opened
         const duration = document.querySelector(".gantt_duration input.gantt_duration_value");
@@ -219,9 +335,7 @@
         }
       });
 
-      // Configura o lightbox para incluir o campo personalizado
-      gantt.attachEvent("onLightboxSave", function(id, task, is_new) {
-        // Validação para garantir que work_time é um número
+      /* gantt.attachEvent("onLightboxSave", function(id, task, is_new) {
         const workTime = document.querySelector(".gantt_section_work_time input.gantt_duration_value");
 
         if (!workTime) {
@@ -233,25 +347,21 @@
         if (!isNaN(work_time)) {
           task.work_time = work_time;
         } else {
-          const activity = getActivity(id);
+          const activity = repository.getOne(id);
           task.work_time = activity.duration;
         }
 
         console.log(task.work_time);
         return true;
-      });
+      });*/
 
-      gantt.attachEvent("onAfterTaskAdd", async function(id, item) {
-        createActivity(item);
-        calculateActivityDates();
+      gantt.attachEvent("onAfterTaskAdd", function(id, item) {
+        repository.add(item);
         updateGannttData();
-        await updateActivities();
-        document.querySelector("#page_chart").innerHTML = `${index_chart+1}/${bkp_activities.length}`;
-        return true;
       });
 
       gantt.attachEvent("onTaskDrag", function(id, mode, task, original) {
-        const activity = getActivity(id);
+        const activity = repository.getOne(id);
         task.duration = activity.duration;
       });
 
@@ -262,7 +372,7 @@
           return false;
         }
 
-        if (activities.length == 1) {
+        if (!service.validateRemove()) {
           alertGantt("Não pode excluir a última tarefa do projeto", "error", 3000);
           return false;
         }
@@ -270,50 +380,43 @@
         return true;
       });
 
-      gantt.attachEvent("onAfterTaskDelete", async function(id, task) {
-        removeActivity(id);
-        calculateActivityDates();
+      gantt.attachEvent("onAfterTaskDelete", function(id, task) {
+        repository.remove(id);
         updateGannttData();
-        await updateActivities();
-        document.querySelector("#page_chart").innerHTML = `${index_chart+1}/${bkp_activities.length}`;
         return true;
       });
 
-      gantt.attachEvent("onAfterTaskUpdate", async function(id, item) {
-
-        const activity = getActivity(id);
+      gantt.attachEvent("onAfterTaskUpdate", function(id, item) {
+        const activity = repository.getOne(id);
 
         if (!activity) {
           window.location.reload();
           return;
         }
 
-        if (!validateChangeDate(item)) {
-          calculateActivityDates();
-          updateGannttData();
-          alertGantt("A data da tarefa não pode ser inferior a data final da tarefa anterior", "error", 3000);
+        if (!service.validateChange(item)) {
+          const parent = repository.getOne(item.parent);
+          alertGantt(`ATENÇÃO!<br> A tarefa <b>${item.text}</b> não deve começar antes de <b>${new Date(parent.end_date).toFormattedDate()}</b>!`, "error", -1);
+        }
+
+        if (!repository.update(item)) {
           return false;
         }
 
-        if (!updateActivity(item, activity)) {
-          return false;
+        if (repository.hasChildren(id) && confirm("Recalcular as datas dos dependentes?")) {
+          repository.resetChildren(id);
         }
 
-        if (hasChildren(id) && confirm("recalcular as datas dos dependentes?")) {
-          resetDependencyActivities(id);
-        }
-
-        calculateActivityDates();
         updateGannttData();
-        await updateActivities();
-        document.querySelector("#page_chart").innerHTML = `${index_chart+1}/${bkp_activities.length}`;
         return true;
       });
-
-      document.querySelector("#btnSave").addEventListener("click", async function() {
-        await updateActivities();
-      });
-
+      /*
+            document.querySelector("#btnSave").addEventListener("click", async function() {
+              showLoading(1000);
+              alertGantt("Salvo com sucesso", "success", 3000);
+              await updateActivities();
+            });
+      */
       document.querySelector("#btnBack").addEventListener("click", function() {
         navigateHistory('back');
       });
@@ -323,6 +426,7 @@
       });
 
       function navigateHistory(direction) {
+        showLoading(500);
         if (direction === 'back' && index_chart > 0) {
           index_chart--;
         } else if (direction === 'next' && index_chart < bkp_activities.length - 1) {
@@ -331,15 +435,15 @@
           return;
         }
 
-        activities = JSON.parse(JSON.stringify(bkp_activities[index_chart]));
-        calculateActivityDates();
-        updateGannttData();
-        document.querySelector("#page_chart").innerHTML = `${index_chart+1}/${bkp_activities.length}`;
+        //activities = JSON.parse(JSON.stringify(bkp_activities[index_chart]));
+        
+        //updateGannttData();
+        //updateNavigator();
       }
     }
 
     (async function() {
-      await loadActivities();
+      await repository.loadAjax();
       init();
     })();
   </script>
