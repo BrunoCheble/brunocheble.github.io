@@ -84,17 +84,15 @@
       <span id="page_chart"></span>
       <button class="btn" disabled id="btnNext">Avançar</button>
     </div>
-    <button class="btn" disabled id="btnSave">Guardar</button>
   </div>
   <div id="gantt_here" style='width:100%; height:100%;'></div>
 
   <script>
     function init() {
       function updateNavigator() {
-        // controlar o disable dos botoes de acordo com o index no bkp_activities
-        document.getElementById('btnBack').disabled = index_chart === 0;
-        document.getElementById('btnNext').disabled = index_chart === bkp_activities.length - 1;
-        document.querySelector("#page_chart").innerHTML = `${index_chart+1}/${bkp_activities.length}`;
+        document.getElementById('btnBack').disabled = bkpService.isFirst();
+        document.getElementById('btnNext').disabled = bkpService.isLast();
+        document.querySelector("#page_chart").innerHTML = `${bkpService.index+1}/${bkpService.activities.length}`;
       }
 
       function showLoading(duration = 500) {
@@ -156,7 +154,10 @@
 
         if (saveAjax) {
           await repository.saveAllAjax();
+          service.saveBkp();
         }
+
+        updateNavigator();
       }
 
       function beforeGanttLoad() {
@@ -173,10 +174,10 @@
         gantt.templates.tooltip_text = function(start, end, task) {
           const activity = repository.getOne(task.id);
           const work_time = activity?.duration ? activity.duration : task.duration;
-          const formatDate = gantt.date.date_to_str("%d/%m/%Y");
+
           return `
               <b>Nome:</b> ${task.text}<br/>
-              <b>Início / Fim</b> ${formatDate(start)} - ${formatDate(end)}<br/>
+              <b>Início / Fim</b> ${start.toFormattedDate()} - ${end.toFormattedDate()}<br/>
               <b>Tempo de trabalho:</b> ${work_time} dia(s)
           `;
         };
@@ -394,10 +395,16 @@
           return;
         }
 
-        if (!service.validateChange(item)) {
+        if (!service.validateChangeByParent(item)) {
           const parent = repository.getOne(item.parent);
           alertGantt(`ATENÇÃO!<br> A tarefa <b>${item.text}</b> não deve começar antes de <b>${new Date(parent.end_date).toFormattedDate()}</b>!`, "error", -1);
         }
+
+        if (!service.validateChangeByChild(item)) {
+          const child = repository.getOneChild(item.id);
+          alertGantt(`ATENÇÃO!<br> A tarefa <b>${item.text}</b> não deve começar depois de <b>${new Date(child.start_date).toFormattedDate()}</b>!`, "error", -1);
+        }
+
 
         if (!repository.update(item)) {
           return false;
@@ -426,19 +433,18 @@
       });
 
       function navigateHistory(direction) {
-        showLoading(500);
-        if (direction === 'back' && index_chart > 0) {
-          index_chart--;
-        } else if (direction === 'next' && index_chart < bkp_activities.length - 1) {
-          index_chart++;
+        //showLoading(200);
+        if (direction === 'back' && bkpService.index > 0) {
+          bkpService.previous();
+        } else if (direction === 'next' && bkpService.index < bkpService.activities.length - 1) {
+          bkpService.next();
         } else {
           return;
         }
 
-        //activities = JSON.parse(JSON.stringify(bkp_activities[index_chart]));
+        repository.load(bkpService.get(bkpService.index));
         
-        //updateGannttData();
-        //updateNavigator();
+        updateGannttData(false);
       }
     }
 

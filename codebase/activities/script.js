@@ -2,12 +2,12 @@ Date.prototype.toFormattedDateString = function () {
   return this.toISOString().split("T")[0];
 };
 
-Date.prototype.toFormattedDate = function() {
-  const dia = String(this.getDate()).padStart(2, '0'); // Pega o dia e garante que tenha 2 dígitos
-  const mes = String(this.getMonth() + 1).padStart(2, '0'); // Pega o mês (0-11), por isso o +1, e garante 2 dígitos
+Date.prototype.toFormattedDate = function (format_db = false) {
+  const dia = String(this.getDate()).padStart(2, "0"); // Pega o dia e garante que tenha 2 dígitos
+  const mes = String(this.getMonth() + 1).padStart(2, "0"); // Pega o mês (0-11), por isso o +1, e garante 2 dígitos
   const ano = this.getFullYear(); // Pega o ano com 4 dígitos
-
-  return `${dia}/${mes}/${ano}`;
+  
+  return format_db ? `${ano}-${mes}-${dia}` : `${dia}/${mes}/${ano}`;
 };
 const fake = [
   {
@@ -162,10 +162,28 @@ const bkpService = {
     this.index--;
   },
   add: function (item) {
+    if (this.activities.length == 9) {
+      this.index = 0;
+      this.activities = [];
+    } else {
+      this.next();
+    }
     this.activities.push(JSON.parse(JSON.stringify(item)));
   },
   get: function () {
-    return this.activities[this.index];
+    return JSON.parse(JSON.stringify(this.activities[this.index]));
+  },
+  isFirst: function () {
+    return this.index == 0;
+  },
+  isLast: function () {
+    return this.index == this.activities.length - 1;
+  },
+  reset: function () {
+    if (this.activities.length == 10) {
+      this.index = 0;
+      this.activities = [this.activities[this.activities.length - 1]];
+    }
   },
 };
 
@@ -251,6 +269,9 @@ const repository = {
   },
   getOne: function (id) {
     return this.activities.find((a) => a.id == id);
+  },
+  getOneChild: function (parent_id) {
+    return this.activities.find((a) => a.dependent_id == parent_id);
   },
   getAllParents: function (id) {
     return this.activities
@@ -426,17 +447,24 @@ const service = {
   validateRemove: function () {
     return repository.activities.length > 1;
   },
-  validateChange: function (item) {
-    return (
-      !this.hasParentValid(item.parent) || 
-      repository.getOne(item.parent).end_date <=
-        item.start_date.toFormattedDateString()
-    );
-  },
   getParentId: function (id) {
     return id > 0 && id != 1000 ? id : 1000;
   },
   hasParentValid: function (id) {
     return id > 0 && id != 1000;
+  },
+  saveBkp: function () {
+    bkpService.add(repository.activities);
+  },
+  validateChangeByParent: function (item) {
+    return (
+      !this.hasParentValid(item.parent) ||
+      repository.getOne(item.parent).start_date <=
+        item.start_date.toFormattedDate(true)
+    );
+  },
+  validateChangeByChild: function (item) {
+    const child = repository.getOneChild(item.id);
+    return !child || child.start_date >= item.end_date.toFormattedDateString();
   },
 };
