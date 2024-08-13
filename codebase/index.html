@@ -615,6 +615,11 @@
 
         updateGannttData(false, false);
       }
+
+      window.onerror = function(message, source, lineno, colno, error) {
+        window.location.reload();
+      };
+
     }
 
     (async function() {
