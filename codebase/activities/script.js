@@ -6,154 +6,14 @@ Date.prototype.toFormattedDate = function (format_db = false) {
   const dia = String(this.getDate()).padStart(2, "0"); // Pega o dia e garante que tenha 2 dígitos
   const mes = String(this.getMonth() + 1).padStart(2, "0"); // Pega o mês (0-11), por isso o +1, e garante 2 dígitos
   const ano = this.getFullYear(); // Pega o ano com 4 dígitos
-  
+
   return format_db ? `${ano}-${mes}-${dia}` : `${dia}/${mes}/${ano}`;
 };
-const fake = [
-  {
-    id: 1,
-    name: "Passo 1",
-    start_date: "2024-08-21",
-    end_date: "2024-08-21",
-    late: 0,
-    dependent_id: "1000",
-    workOnSaturday: false,
-    workOnSunday: false,
-    workOnHoliday: false,
-    duration: 1,
-    progress: "1",
-    critical_path: 1,
-  },
-  {
-    id: 1723059957741,
-    name: "Passo 2",
-    duration: 2,
-    late: 0,
-    dependent_id: "1",
-    start_date: "2024-08-23",
-    end_date: "2024-08-26",
-    workOnHoliday: false,
-    workOnSaturday: false,
-    workOnSunday: false,
-    progress: 0,
-    critical_path: 1,
-  },
-  {
-    id: 1723059957742,
-    name: "1.2.1.1",
-    duration: 1,
-    late: 0,
-    dependent_id: "0",
-    start_date: "2024-08-27",
-    end_date: null,
-    workOnHoliday: false,
-    workOnSaturday: false,
-    workOnSunday: false,
-    progress: "",
-    critical_path: 1,
-  },
-  {
-    id: 1723059957743,
-    name: "1.2.1.1.1",
-    duration: 1,
-    late: 0,
-    dependent_id: "1723059957742",
-    start_date: "2024-08-28",
-    end_date: "2024-08-28",
-    workOnHoliday: false,
-    workOnSaturday: false,
-    workOnSunday: false,
-    progress: "",
-    critical_path: 1,
-  },
-  {
-    id: 1723059957744,
-    name: "1.2.1.1.1.1",
-    duration: 1,
-    late: 0,
-    dependent_id: "1723059957743",
-    start_date: "2024-08-29",
-    end_date: "2024-08-29",
-    workOnHoliday: false,
-    workOnSaturday: false,
-    workOnSunday: false,
-    progress: "",
-    critical_path: 1,
-  },
-  {
-    id: 1723059957745,
-    name: "1.2.1.1.1.1.1",
-    duration: 1,
-    late: 0,
-    dependent_id: "1723059957744",
-    start_date: "2024-08-30",
-    end_date: "2024-08-30",
-    workOnHoliday: false,
-    workOnSaturday: false,
-    workOnSunday: false,
-    critical_path: 1,
-    progress: "",
-  },
-  {
-    id: 1723059957739,
-    name: "Passo X",
-    duration: 1,
-    late: 0,
-    dependent_id: "1000",
-    start_date: "2024-08-22",
-    end_date: "2024-08-22",
-    workOnHoliday: false,
-    workOnSaturday: false,
-    workOnSunday: false,
-    progress: "",
-    critical_path: 0,
-  },
-  {
-    id: 1723059957740,
-    name: "Passo 4",
-    duration: 1,
-    late: 0,
-    dependent_id: "1723206476001",
-    start_date: "2024-09-02",
-    end_date: "2024-09-02",
-    workOnHoliday: false,
-    workOnSaturday: false,
-    workOnSunday: false,
-    critical_path: 1,
-    progress: 0,
-  },
-  {
-    id: 1723132806045,
-    name: "Passo Z",
-    duration: 4,
-    late: 0,
-    dependent_id: "1000",
-    start_date: "2024-08-27",
-    end_date: "2024-08-30",
-    workOnHoliday: false,
-    workOnSaturday: false,
-    workOnSunday: false,
-    progress: "",
-    critical_path: 0,
-  },
-  {
-    id: 1723206476001,
-    name: "Passo 3",
-    duration: 1,
-    late: 0,
-    dependent_id: "1723059957741",
-    start_date: "2024-08-30",
-    critical_path: 1,
-    end_date: "2024-08-30",
-    workOnHoliday: false,
-    workOnSaturday: false,
-    workOnSunday: false,
-    progress: 0.7,
-  },
-];
+
+const fake = [];
 
 const bkpService = {
-  activities: [],
+  items: [],
   index: 0,
   next: function () {
     this.index++;
@@ -161,40 +21,51 @@ const bkpService = {
   previous: function () {
     this.index--;
   },
-  add: function (item) {
-    if (this.activities.length == 9) {
+  add: function () {
+    if (this.items.length == 9) {
       this.index = 0;
-      this.activities = [];
+      this.items = [];
     } else {
       this.next();
     }
-    this.activities.push(JSON.parse(JSON.stringify(item)));
+
+    this.items.push({
+      activities: JSON.parse(JSON.stringify(repository.activities)),
+      links: JSON.parse(JSON.stringify(repositoryLink.links)),
+    });
   },
   get: function () {
-    return JSON.parse(JSON.stringify(this.activities[this.index]));
+    return JSON.parse(JSON.stringify(this.items[this.index]));
   },
   isFirst: function () {
     return this.index == 0;
   },
   isLast: function () {
-    return this.index == this.activities.length - 1;
+    return (
+      this.items.length == 0 ||
+      this.items.length-1 == this.index
+    );
   },
   reset: function () {
-    if (this.activities.length == 10) {
+    if (this.items.length == 10) {
       this.index = 0;
-      this.activities = [this.activities[this.activities.length - 1]];
+      this.items = [
+        this.items[this.items.length - 1],
+      ];
     }
   },
 };
 
+const config = {
+  workOnSaturday: false,
+  workOnSunday: false,
+  workOnHoliday: false,
+};
+
 const repository = {
   activities: [],
-  apiPath: "https://api.jsonbin.io/v3/b/66afccc9ad19ca34f891678b",
-  apiKey: "$2a$10$s/nd28gEBk/DDb.CzQPITuFAPVbPR8igpDPQzVPFunGITEWOAdxj.",
 
   add: function (item) {
-    console.log("createActivity", item);
-
     const start_date = new Date(
       item.start_date.setDate(item.start_date.getDate() + 1)
     );
@@ -219,21 +90,19 @@ const repository = {
     return true;
   },
   update: function (item) {
-    console.log("updateActivity", item);
-
     const start_date = new Date(
       item.start_date.setDate(item.start_date.getDate() + 1)
     );
 
     if (!start_date || start_date.getFullYear() == 1970) {
-      console.log("Data inválida", item);
+      console.log("Invalid date", item);
       return false;
     }
 
     const activity_index = this.activities.findIndex((a) => a.id == item.id);
 
     if (activity_index == -1) {
-      console.log("Não não foi encontrado", item);
+      console.log("Not found", item);
       return false;
     }
 
@@ -248,19 +117,14 @@ const repository = {
     return true;
   },
   remove: function (id) {
-    console.log("item", id);
     this.activities = this.activities
       .filter((a) => a.id != id)
       .map((a) => (a.dependent_id == id ? { ...a, dependent_id: null } : a));
-
-    console.log("remove", this.activities);
     return true;
   },
-  resetChildren: function (id) {
-    const children = this.getAllChildren(id).map((a) => a.id);
-
+  resetChildren: function (ids) {
     this.activities = this.activities.map((a) => {
-      if (children.includes(a.id)) {
+      if (ids.includes(a.id)) {
         a.start_date = null;
         a.end_date = null;
       }
@@ -293,64 +157,33 @@ const repository = {
         return acc;
       }, []);
   },
-  loadAjax: async function () {
-    parent = this;
-    await fetch(parent.apiPath, {
-      method: "GET",
-      headers: {
-        "X-Master-Key": parent.apiKey,
-      },
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        bkpService.activities.push(JSON.parse(JSON.stringify(data.record)));
-        parent.activities = data.record;
-      })
-      .catch((error) => {
-        console.log("Error:", error);
-        parent.activities = fake;
-      });
-  },
   load: function (activities) {
     this.activities = activities;
-  },
-  saveAllAjax: async function () {
-    parent = this;
-    await fetch(parent.apiPath, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Master-Key": parent.apiKey,
-      },
-      body: JSON.stringify(parent.activities),
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        parent.activities = data.record;
-      })
-      .catch((error) => {
-        //console.error("Error:", error)
-      });
   },
   hasChildren: function (id) {
     return this.activities.some((a) => a.dependent_id == id);
   },
+  getLastActivityById: function (ids) {
+    return this.activities
+      .filter((a) => ids.includes(a.id))
+      .sort((a, b) => b.end_date - a.end_date)[0];
+  },
 };
 
 const service = {
-  workOnHoliday: false,
-  workOnSaturday: false,
-  workOnSunday: false,
-  
   maxDate: function () {
-    return new Date(
-      Math.max(...repository.activities.map((a) => new Date(a.end_date)))
-    );
+    return repository.activities.length
+      ? new Date(
+          Math.max(...repository.activities.map((a) => new Date(a.end_date)))
+        )
+      : null;
   },
   minDate: function () {
-    return new Date(
-      Math.min(...repository.activities.map((a) => new Date(a.start_date)))
-    );
+    return repository.activities.length
+      ? new Date(
+          Math.min(...repository.activities.map((a) => new Date(a.start_date)))
+        )
+      : null;
   },
   getNextDateSkippingWeekends: function (
     initialDate,
@@ -391,22 +224,68 @@ const service = {
       }, []);
   },
   getActivitiesWithCalculatedDates: function () {
-    const items = this.getActivitiesOrderedByDependency();
-    console.log("items", items);
-    return items.map((a) => {
-      const parent = items.find((d) => d.id == a.dependent_id);
+    const baseIds = repositoryLink.links.map((a) => parseInt(a.target));
 
-      if ((a.start_date == null || a.start_date == "") && parent.end_date) {
-        a.start_date = this.getNextDateSkippingWeekends(
-          parent.end_date,
-          1,
-          this.workOnSaturday,
-          this.workOnSunday,
-          a.workOnHoliday
-        );
-      }
+    const allSteps = repository.activities.map((a) => ({
+      ...a,
+      org_start_date: a.start_date,
+    }));
 
-      if (a.start_date) {
+    const firstSteps = allSteps.filter(
+      (a) => !baseIds.includes(parseInt(a.id))
+    );
+    const calculateChildren = (parent) => {
+      repositoryLink
+        .getAllBySource(parent.id)
+        .map((d) => parseInt(d.target))
+        .forEach((id) => {
+          const child = allSteps.find((d) => d.id == id);
+          if (
+            child.start_date == null ||
+            (child.org_start_date == null &&
+              child.end_date &&
+              child.end_date <= parent.end_date)
+          ) {
+            child.start_date = this.getNextDateSkippingWeekends(
+              parent.end_date,
+              1,
+              config.workOnSaturday,
+              config.workOnSunday,
+              config.workOnHoliday
+            );
+          }
+          if (child.start_date) {
+            child.end_date = this.getNextDateSkippingWeekends(
+              child.start_date,
+              child.duration + child.late - 1,
+              this.workOnSaturday,
+              this.workOnSunday,
+              child.workOnHoliday
+            );
+          }
+          calculateChildren(child);
+        });
+    };
+
+    const project_start_date = new Date(
+      Math.min(...firstSteps.filter((a) => a.start_date).map((a) => new Date(a.start_date)))
+    );
+    
+    firstSteps.forEach((parent) => {
+      parent.start_date = parent.start_date ?? project_start_date.toFormattedDate(true);
+      parent.end_date = this.getNextDateSkippingWeekends(
+        parent.start_date,
+        parent.duration + parent.late - 1,
+        this.workOnSaturday,
+        this.workOnSunday,
+        parent.workOnHoliday
+      );
+
+      calculateChildren(parent);
+    });
+
+    return allSteps.map((a) => {
+      if (a.end_date == null) {
         a.end_date = this.getNextDateSkippingWeekends(
           a.start_date,
           a.duration + a.late - 1,
@@ -423,18 +302,24 @@ const service = {
 
     const max_end_date = new Date(
       Math.max(...items.map((a) => new Date(a.end_date)))
-    ).toFormattedDateString();
+    );
 
-    const parents = items
-      .filter((a) => a.end_date == max_end_date)
+    const lastItems = items
+      .filter((a) => a.end_date == max_end_date.toFormattedDateString())
+      .map((a) => parseInt(a.id));
+
+    const parents = repositoryLink.links
+      .filter((a) => lastItems.includes(parseInt(a.target)))
       .reduce((acc, a) => {
-        acc.push(a.id);
-        acc = acc.concat(repository.getAllParents(a.id).map((d) => d.id));
+        acc = acc.concat(repositoryLink.getAllParents(a.target));
         return acc;
       }, []);
 
     return items.map((a) => {
-      if (parents.includes(a.id)) {
+      if (
+        parents.includes(parseInt(a.id)) ||
+        lastItems.includes(parseInt(a.id))
+      ) {
         a.critical_path = 1;
       } else {
         a.critical_path = 0;
@@ -458,7 +343,7 @@ const service = {
     return id > 0 && id != 1000;
   },
   saveBkp: function () {
-    bkpService.add(repository.activities);
+    bkpService.add();
   },
   validateChangeByParent: function (item) {
     return (
@@ -472,9 +357,148 @@ const service = {
     return !child || child.start_date >= item.end_date.toFormattedDateString();
   },
   download() {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(repository.activities)], { type: 'application/json' }));
-    a.download = 'data.json';
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(
+      new Blob([JSON.stringify(repository.activities)], {
+        type: "application/json",
+      })
+    );
+    a.download = "data.json";
     a.click();
-  }
+  },
+  clear: function () {
+    repository.load([]);
+    repositoryLink.load([]);
+  },
+  removeActivity: function (id) {
+    repository.remove(id);
+    repositoryLink.removeAllByActivity(id);
+  },
+};
+
+const repositoryLink = {
+  links: [],
+  add: function (item) {
+    this.links.push({
+      id: item.id,
+      source: item.source,
+      target: item.target,
+      type: "0",
+    });
+  },
+  load: function (items) {
+    this.links = items;
+  },
+  remove: function (id) {
+    this.links = this.links.filter((a) => a.id != id);
+  },
+  removeAllByActivity: function (id) {
+    this.load(this.links.filter((a) => a.source != id && a.target != id));
+  },
+  getAllBySource(id) {
+    return this.links.filter((a) => a.source == id);
+  },
+  getAllByTarget(id) {
+    return this.links.filter((a) => a.target == id);
+  },
+  getAllParents: function (id) {
+    const parents = new Set();
+    const findParentsByTarget = (id) => {
+      this.links
+        .filter((a) => a.target == id)
+        .forEach((a) => {
+          if (!parents.has(parseInt(a.source))) {
+            parents.add(parseInt(a.source));
+            findParentsByTarget(a.source);
+          }
+        });
+    };
+    findParentsByTarget(id);
+    return Array.from(parents);
+  },
+  getAllChildren: function (id) {
+    const children = new Set();
+
+    const findChildrenBySource = (id) => {
+      this.links
+        .filter((a) => a.source == id)
+        .forEach((a) => {
+          if (!children.has(parseInt(a.target))) {
+            children.add(parseInt(a.target));
+            findChildrenBySource(a.target);
+          }
+        });
+    };
+
+    findChildrenBySource(id);
+    return Array.from(children);
+  },
+  hasChildren(id) {
+    return this.links.some((a) => a.source == id);
+  },
+  validateAdd: function (item) {
+    return !this.getAllChildren(item.target).some(
+      (x) => x == parseInt(item.source)
+    );
+  },
+};
+
+const syncService = {
+  apiPath: "https://api.jsonbin.io/v3/b/66afccc9ad19ca34f891678b",
+  apiKey: "$2a$10$s/nd28gEBk/DDb.CzQPITuFAPVbPR8igpDPQzVPFunGITEWOAdxj.",
+
+  save: async function () {
+    parent = this;
+    return fetch(parent.apiPath, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Master-Key": parent.apiKey,
+      },
+      body: JSON.stringify({
+        activities: repository.activities,
+        links: repositoryLink.links,
+        config: config,
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        const { activities = [], links = [] } = data.record;
+
+        repository.load(activities);
+        repositoryLink.load(links);
+      })
+      .catch((error) => {
+        console.error("Error:", error);
+      });
+  },
+  load: async function () {
+    parent = this;
+    return fetch(parent.apiPath, {
+      method: "GET",
+      headers: {
+        "X-Master-Key": parent.apiKey,
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        const { activities = [], links = [], config = {} } = data.record;
+
+        bkpService.items.push({
+          activities: JSON.parse(JSON.stringify(activities)),
+          links: JSON.parse(JSON.stringify(links)),
+        });
+
+        repository.load(activities);
+        repositoryLink.load(links);
+
+        config.workOnSaturday = config.workOnSaturday || false;
+        config.workOnSunday = config.workOnSunday || false;
+        config.workOnHoliday = config.workOnHoliday || false;
+      })
+      .catch((error) => {
+        console.log("Error:", error);
+        repository.load(fake);
+      });
+  },
 };

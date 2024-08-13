@@ -17,9 +17,11 @@
   <style>
     .gantt_task_progress_drag,
     .gantt_task_drag.task_left.task_start_date,
-    .gantt_task_drag.task_right.task_end_date,
-    .gantt_link_control.task_left.task_start_date,
-    .gantt_link_control.task_right.task_end_date {
+    .gantt_task_drag.task_right.task_end_date
+
+    /*.gantt_link_control.task_left.task_start_date,
+    .gantt_link_control.task_right.task_end_date */
+      {
       display: none !important;
     }
 
@@ -88,26 +90,29 @@
       <span id="page_chart"></span>
       <button class="btn" disabled id="btnNext"><i class="fas fa-arrow-right"></i></button>
     </div>
-    
-<div class="options">
-    <label class="toggle-button">
+
+    <div class="options" style="display: none;">
+      <label class="toggle-button">
         <div class="custom-checkbox" id="saturdayCheckbox"></div>
         Trabalha Sábado
         <input type="checkbox" class="toggle-input" id="saturdayToggle">
-    </label>
-    <label class="toggle-button">
+      </label>
+      <label class="toggle-button">
         <div class="custom-checkbox" id="sundayCheckbox"></div>
         Trabalha Domingo
         <input type="checkbox" class="toggle-input" id="sundayToggle">
-    </label>
-</div>
-    <div style="display: flex; gap: 20px">
+      </label>
+    </div>
+    <div style="display: flex; gap: 10px">
       <button class="btn btn-export" id="btnExport">
         <i class="fas fa-file-export"></i> Exportar
       </button>
       <button class="btn btn-import" id="btnImport">
         <i class="fas fa-file-import"></i> Importar</button>
       <input type="file" id="importInput" accept=".json" style="display: none;">
+      <button class="btn btn-recycle" id="btnClear">
+        <i class="fas fa-recycle"></i> Recricar
+      </button>
     </div>
   </div>
   <div id="gantt_here" style='width:100%; height:100%;'></div>
@@ -117,7 +122,9 @@
       function updateNavigator() {
         document.getElementById('btnBack').disabled = bkpService.isFirst();
         document.getElementById('btnNext').disabled = bkpService.isLast();
-        document.querySelector("#page_chart").innerHTML = `${bkpService.index+1}/${bkpService.activities.length}`;
+        if (bkpService.items.length > 1) {
+          document.querySelector("#page_chart").innerHTML = `${bkpService.index+1}/${bkpService.items.length}`;          
+        }
       }
 
       function showLoading(duration = 500) {
@@ -137,8 +144,9 @@
         });
       }
 
-      async function updateGannttData(saveAjax = true, updateNavigator = true) {
+      async function updateGannttData(syncData = true, updateBkp = true) {
         const data = service.getFullActivityList().map(a => {
+          console.log(a)
           return {
             id: a.id,
             text: a.name,
@@ -157,34 +165,43 @@
         data.push({
           id: 1000,
           text: "Project",
-          start_date: min_date,
-          duration: service.calculateDaysBetweenDates(max_date, min_date) + 1,
+          start_date: min_date || new Date(),
+          duration: min_date && max_date ? service.calculateDaysBetweenDates(max_date, min_date) + 1 : 5,
           open: true,
           type: "project"
         })
 
-        links = data.filter(a => service.hasParentValid(a.parent)).map(a => {
-          return {
-            id: a.id,
-            source: a.parent,
-            target: a.id,
-            type: "0"
-          }
-        })
+        if (repositoryLink.links.length > 0) {
+          links = repositoryLink.links;
+        }
+        else {
+          links = data.filter(a => service.hasParentValid(a.parent)).map(a => {
+            return {
+              id: a.id,
+              source: a.parent,
+              target: a.id,
+              type: 0
+            }
+          });
 
+          repositoryLink.load(links);
+        }
+        gantt.clearAll();
         gantt.parse({
           data,
           links
         });
 
-        if (saveAjax) {
-          await repository.saveAllAjax();
+        if (updateBkp) {
           service.saveBkp();
         }
 
-        if (updateNavigator) {
-          updateNavigator();          
+        updateNavigator();
+
+        if (syncData) {
+          await syncService.save();
         }
+
       }
 
       function beforeGanttLoad() {
@@ -311,22 +328,40 @@
         ];
 
         // Template para formatar a coluna start_date no grid
-        gantt.templates.task_cell = function (item, column) {
-          console.log(column)
-            if (column.id === "start_date") {
-                return formatDate(item.start_date);
-            }
-            return item[column.id]; // Retorna o valor padrão para outras colunas
+        gantt.templates.task_cell = function(item, column) {
+          if (column.id === "start_date") {
+            return formatDate(item.start_date);
+          }
+          return item[column.id]; // Retorna o valor padrão para outras colunas
         };
 
         // Define o formato da data para a coluna no grid
-        gantt.config.columns = [
-          {name:"text",       label:"Task name",width: '*', min_width: 150, max_width:500, tree:true },
-          {name:"start_date", label:"Start date", align:"center", template:function(obj) {
-            return obj.start_date.toFormattedDate();
-          } },
-          {name:"duration",   label:"Duration",   align:"center" },
-          {name:"add",        label:"",           width:44 }
+        gantt.config.columns = [{
+            name: "text",
+            label: "Task name",
+            width: '*',
+            min_width: 150,
+            max_width: 500,
+            tree: true
+          },
+          {
+            name: "start_date",
+            label: "Start date",
+            align: "center",
+            template: function(obj) {
+              return obj.start_date.toFormattedDate();
+            }
+          },
+          {
+            name: "duration",
+            label: "Duration",
+            align: "center"
+          },
+          {
+            name: "add",
+            label: "",
+            width: 44
+          }
         ];
 
       }
@@ -364,14 +399,9 @@
 
       afterGanttLoad();
 
+      loadToggleCheckboxes();
       updateGannttData(false, false);
 
-      gantt.attachEvent("onTaskDurationChange", function(id, new_duration) {
-        console.log("A duração da atividade foi alterada");
-        console.log("ID da atividade:", id);
-        console.log("Nova duração:", new_duration);
-      });
-      // Evento que dispara após abrir o lightbox
       gantt.attachEvent("onLightbox", function(task_id) {
         const activity = repository.getOne(task_id);
 
@@ -382,26 +412,6 @@
           duration.value = activity?.duration || 1;
         }
       });
-
-      /* gantt.attachEvent("onLightboxSave", function(id, task, is_new) {
-        const workTime = document.querySelector(".gantt_section_work_time input.gantt_duration_value");
-
-        if (!workTime) {
-          return true;
-        }
-
-        const work_time = parseInt(workTime.value, 10);
-
-        if (!isNaN(work_time)) {
-          task.work_time = work_time;
-        } else {
-          const activity = repository.getOne(id);
-          task.work_time = activity.duration;
-        }
-
-        console.log(task.work_time);
-        return true;
-      });*/
 
       gantt.attachEvent("onAfterTaskAdd", function(id, item) {
         repository.add(item);
@@ -429,7 +439,7 @@
       });
 
       gantt.attachEvent("onAfterTaskDelete", function(id, task) {
-        repository.remove(id);
+        service.removeActivity(id);
         updateGannttData();
         return true;
       });
@@ -442,6 +452,7 @@
           return;
         }
 
+        /*
         if (!service.validateChangeByParent(item)) {
           const parent = repository.getOne(item.parent);
           alertGantt(`ATENÇÃO!<br> A tarefa <b>${item.text}</b> não deve começar antes de <b>${new Date(parent.start_date).toFormattedDate()}</b>!`, "error", -1);
@@ -451,26 +462,26 @@
           const child = repository.getOneChild(item.id);
           alertGantt(`ATENÇÃO!<br> A tarefa <b>${item.text}</b> não deve começar depois de <b>${new Date(child.start_date).toFormattedDate()}</b>!`, "error", -1);
         }
-
+        */
 
         if (!repository.update(item)) {
           return false;
         }
 
-        if (repository.hasChildren(id) && confirm("Recalcular as datas dos dependentes?")) {
-          repository.resetChildren(id);
+        if (repositoryLink.hasChildren(id) && confirm("Recalcular as datas dos dependentes?")) {
+          repository.resetChildren(repositoryLink.getAllChildren(id));
+        }
+        else {
+          gantt.serialize().links.filter(a => a.source == id).forEach(a => {
+            const { start_date } = gantt.serialize().data.find(b => b.id == a.target);
+            repository.getOne(a.target).start_date = start_date.slice(0,10);
+          })
         }
 
         updateGannttData();
         return true;
       });
-      /*
-            document.querySelector("#btnSave").addEventListener("click", async function() {
-              showLoading(1000);
-              alertGantt("Salvo com sucesso", "success", 3000);
-              await updateActivities();
-            });
-      */
+
       document.querySelector("#btnBack").addEventListener("click", function() {
         navigateHistory('back');
       });
@@ -487,6 +498,49 @@
         document.getElementById('importInput').click();
       });
 
+      document.getElementById('btnClear').addEventListener('click', async function() {
+        if (confirm("Recomendamos que exporte o projeto antes de recriar. Deseja realmente recriar o projeto do zero ?")) {
+          showLoading(60000);
+          service.clear();
+          await syncService.save();
+          window.location.reload();
+        }
+      })
+
+      gantt.attachEvent("onBeforeLinkAdd", function(id, link) {
+        if (!repositoryLink.validateAdd(link)) {
+          alertGantt("<b>Erro!</b> Não pode ser feita esta relação por causar um relacionamento infinito!", "error", -1);
+          repositoryLink.remove(id);
+          return false;
+        }
+
+        repositoryLink.add(link);
+        updateGannttData();
+/*
+
+        if (repositoryLink.hasChildren(link.source) && confirm("Recalcular as datas dos dependentes?")) {
+          repository.resetChildren(repositoryLink.getAllChildren(link.source));
+        }
+
+        updateGannttData();
+        */
+        return true;
+      });
+      gantt.attachEvent("onAfterLinkDelete", function(id,link){
+
+        if (repositoryLink.hasChildren(link.source) && confirm("Recalcular as datas dos antigos dependentes?")) {
+          repository.resetChildren(repositoryLink.getAllChildren(link.source));
+        }
+        else {
+          const { start_date } = gantt.serialize().data.find(a => a.id == link.target);
+          repository.getOne(link.target).start_date = start_date.slice(0,10);
+        }
+
+        repositoryLink.remove(id);
+
+        updateGannttData();
+      });
+
       document.getElementById('importInput').addEventListener('change', function(event) {
         showLoading(3000);
         const file = event.target.files[0];
@@ -495,7 +549,6 @@
         const reader = new FileReader();
         reader.onload = async function(e) {
           try {
-            console.log(JSON.parse(e.target.result));
             repository.load(JSON.parse(e.target.result));
             await repository.saveAllAjax();
             window.location.reload();
@@ -509,48 +562,63 @@
         event.target.value = '';
       });
 
+      function loadToggleCheckboxes() {
+
+        const saturdayToggle = document.getElementById('saturdayCheckbox');
+        const sundayToggle = document.getElementById('sundayCheckbox');
+
+        if (config.workOnSaturday) {
+          saturdayToggle.classList.toggle('checked'); // Usa toggle
+        }
+
+        if (config.workOnSunday) {
+          sundayToggle.classList.toggle('checked'); // Usa toggle
+        }
+      }
+
       // Função para alternar o estado do checkbox
       function toggleCheckbox(checkboxId, checkboxElement) {
-          const checkbox = document.getElementById(checkboxId);
-          checkbox.checked = !checkbox.checked; // Alterna o estado checked
-          checkboxElement.classList.toggle('checked'); // Usa toggle
+        const checkbox = document.getElementById(checkboxId);
+        checkbox.checked = !checkbox.checked; // Alterna o estado checked
+        checkboxElement.classList.toggle('checked'); // Usa toggle
 
-          if (checkboxId === 'saturdayToggle') {
-              service.workOnSaturday = !service.workOnSaturday;
-          }
-          else {
-              service.workOnSunday = !service.workOnSunday;
-          } 
-          updateGannttData(false, false);
+        if (checkboxId === 'saturdayToggle') {
+          config.workOnSaturday = !config.workOnSaturday;
+        } else {
+          config.workOnSunday = !config.workOnSunday;
+        }
+
+        updateGannttData(true, false);
       }
 
       // Adiciona os ouvintes de eventos para os checkboxes estilizados
-      document.getElementById('saturdayCheckbox').onclick = function () {
-          toggleCheckbox('saturdayToggle', this);
+      document.getElementById('saturdayCheckbox').onclick = function() {
+        toggleCheckbox('saturdayToggle', this);
       };
 
-      document.getElementById('sundayCheckbox').onclick = function () {
-          toggleCheckbox('sundayToggle', this);
+      document.getElementById('sundayCheckbox').onclick = function() {
+        toggleCheckbox('sundayToggle', this);
       };
 
       function navigateHistory(direction) {
-        //showLoading(200);
-        if (direction === 'back' && bkpService.index > 0) {
+        if (direction === 'back' && !bkpService.isFirst()) {
           bkpService.previous();
-        } else if (direction === 'next' && bkpService.index < bkpService.activities.length - 1) {
+        } else if (direction === 'next' && !bkpService.isLast()) {
           bkpService.next();
         } else {
           return;
         }
 
-        repository.load(bkpService.get(bkpService.index));
+        const { activities, links } = bkpService.get();
+        repository.load(activities);
+        repositoryLink.load(links);
 
-        updateGannttData(false);
+        updateGannttData(false, false);
       }
     }
 
     (async function() {
-      await repository.loadAjax();
+      await syncService.load();
       init();
     })();
   </script>

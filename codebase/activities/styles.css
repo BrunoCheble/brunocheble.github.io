@@ -35,6 +35,19 @@ body {
   border-radius: 0.25rem;
   transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
+/* Estilo para o botão ao passar o mouse */
+.btn:hover {
+  background-color: #2980b9;
+}
+
+.btn-recycle {
+  background-color: #a72828; /* Cor verde */
+  border-color: #a72828;
+}
+.btn-recycle:hover {
+  background-color: #882121; /* Cor verde escura ao passar o mouse */
+  border-color: #7e1e1e;
+}
 /* Botão para exportar */
 .btn-export {
   background-color: #28a745; /* Cor verde */
@@ -55,10 +68,6 @@ body {
 .btn-import:hover {
   background-color: #138496; /* Cor azul escura ao passar o mouse */
   border-color: #117a8b;
-}
-/* Estilo para o botão ao passar o mouse */
-.btn:hover {
-  background-color: #2980b9;
 }
 
 /* Estilo para o botão desabilitado */
