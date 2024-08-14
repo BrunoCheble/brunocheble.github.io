@@ -452,23 +452,11 @@
           return;
         }
 
-        /*
-        if (!service.validateChangeByParent(item)) {
-          const parent = repository.getOne(item.parent);
-          alertGantt(`ATENÇÃO!<br> A tarefa <b>${item.text}</b> não deve começar antes de <b>${new Date(parent.start_date).toFormattedDate()}</b>!`, "error", -1);
-        }
-
-        if (!service.validateChangeByChild(item)) {
-          const child = repository.getOneChild(item.id);
-          alertGantt(`ATENÇÃO!<br> A tarefa <b>${item.text}</b> não deve começar depois de <b>${new Date(child.start_date).toFormattedDate()}</b>!`, "error", -1);
-        }
-        */
-
         if (!repository.update(item)) {
           return false;
         }
 
-        if (repositoryLink.hasChildren(id) && confirm("Recalcular as datas dos dependentes?")) {
+        if (repositoryLink.hasChildren(id) && confirm("Recalcular as datas de todas as tarefas dependentes?")) {
           repository.resetChildren(repositoryLink.getAllChildren(id));
         }
         else {
@@ -515,18 +503,16 @@
         }
 
         repositoryLink.add(link);
-        updateGannttData();
-/*
 
-        if (repositoryLink.hasChildren(link.source) && confirm("Recalcular as datas dos dependentes?")) {
+        if (confirm("Recalcular as datas das tarefas dependentes?")) {
           repository.resetChildren(repositoryLink.getAllChildren(link.source));
         }
 
         updateGannttData();
-        */
+
         return true;
       });
-      gantt.attachEvent("onAfterLinkDelete", function(id,link){
+      gantt.attachEvent("onBeforeLinkDelete", function(id,link){
 
         if (repositoryLink.hasChildren(link.source) && confirm("Recalcular as datas dos antigos dependentes?")) {
           repository.resetChildren(repositoryLink.getAllChildren(link.source));
@@ -549,8 +535,15 @@
         const reader = new FileReader();
         reader.onload = async function(e) {
           try {
-            repository.load(JSON.parse(e.target.result));
-            await repository.saveAllAjax();
+            const {activities = [], links = [], config = {}} = JSON.parse(e.target.result)
+            repository.load(activities);
+            repositoryLink.load(links);
+        
+            config.workOnSaturday = config.workOnSaturday || false;
+            config.workOnSunday = config.workOnSunday || false;
+            config.workOnHoliday = config.workOnHoliday || false;
+            
+            await syncService.save();
             window.location.reload();
           } catch (error) {
             console.error("Erro ao ler o arquivo JSON:", error);

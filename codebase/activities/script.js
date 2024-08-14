@@ -359,7 +359,11 @@ const service = {
   download() {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(
-      new Blob([JSON.stringify(repository.activities)], {
+      new Blob([JSON.stringify({
+        activities: repository.activities,
+        links: repositoryLink.links,
+        config: config
+      })], {
         type: "application/json",
       })
     );
@@ -463,10 +467,14 @@ const syncService = {
     })
       .then((response) => response.json())
       .then((data) => {
-        const { activities = [], links = [] } = data.record;
+        const { activities = [], links = [], config = {} } = data.record;
 
         repository.load(activities);
         repositoryLink.load(links);
+        
+        config.workOnSaturday = config.workOnSaturday || false;
+        config.workOnSunday = config.workOnSunday || false;
+        config.workOnHoliday = config.workOnHoliday || false;
       })
       .catch((error) => {
         console.error("Error:", error);
