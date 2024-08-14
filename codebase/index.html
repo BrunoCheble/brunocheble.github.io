@@ -76,7 +76,6 @@
       }
     }
   </style>
-  </style>
 </head>
 
 <body>
@@ -91,7 +90,7 @@
       <button class="btn" disabled id="btnNext"><i class="fas fa-arrow-right"></i></button>
     </div>
 
-    <div class="options" style="display: none;">
+    <div class="options">
       <label class="toggle-button">
         <div class="custom-checkbox" id="saturdayCheckbox"></div>
         Trabalha Sábado
@@ -146,7 +145,6 @@
 
       async function updateGannttData(syncData = true, updateBkp = true) {
         const data = service.getFullActivityList().map(a => {
-          console.log(a)
           return {
             id: a.id,
             text: a.name,
@@ -580,7 +578,6 @@
         } else {
           config.workOnSunday = !config.workOnSunday;
         }
-
         updateGannttData(true, false);
       }
 

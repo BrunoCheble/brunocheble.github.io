@@ -196,9 +196,7 @@ const service = {
 
     while (days > 0) {
       date.setDate(date.getDate() + 1);
-
       const dayOfWeek = date.getDay();
-
       if (
         (dayOfWeek !== 0 || workOnSunday) &&
         (dayOfWeek !== 6 || workOnSaturday)
@@ -258,8 +256,8 @@ const service = {
             child.end_date = this.getNextDateSkippingWeekends(
               child.start_date,
               child.duration + child.late - 1,
-              this.workOnSaturday,
-              this.workOnSunday,
+              config.workOnSaturday,
+              config.workOnSunday,
               child.workOnHoliday
             );
           }
@@ -276,8 +274,8 @@ const service = {
       parent.end_date = this.getNextDateSkippingWeekends(
         parent.start_date,
         parent.duration + parent.late - 1,
-        this.workOnSaturday,
-        this.workOnSunday,
+        config.workOnSaturday,
+        config.workOnSunday,
         parent.workOnHoliday
       );
 
@@ -289,8 +287,8 @@ const service = {
         a.end_date = this.getNextDateSkippingWeekends(
           a.start_date,
           a.duration + a.late - 1,
-          this.workOnSaturday,
-          this.workOnSunday,
+          config.workOnSaturday,
+          config.workOnSunday,
           a.workOnHoliday
         );
       }
@@ -490,19 +488,19 @@ const syncService = {
     })
       .then((response) => response.json())
       .then((data) => {
-        const { activities = [], links = [], config = {} } = data.record;
+        const { activities = [], links = [] } = data.record;
 
         bkpService.items.push({
-          activities: JSON.parse(JSON.stringify(activities)),
-          links: JSON.parse(JSON.stringify(links)),
+          activities: activities,
+          links: links,
         });
 
         repository.load(activities);
         repositoryLink.load(links);
 
-        config.workOnSaturday = config.workOnSaturday || false;
-        config.workOnSunday = config.workOnSunday || false;
-        config.workOnHoliday = config.workOnHoliday || false;
+        config.workOnSaturday = data.record?.config.workOnSaturday || false;
+        config.workOnSunday = data.record?.workOnSunday || false;
+        config.workOnHoliday = data.record?.workOnHoliday || false;
       })
       .catch((error) => {
         console.log("Error:", error);
