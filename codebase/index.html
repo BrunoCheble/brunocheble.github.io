@@ -83,8 +83,9 @@
   <div class="spinner-overlay" id="loadingSpinner">
     <div class="spinner"></div>
   </div>
-  <div style="padding: 10px; background-color: #f5f5f5; display: flex; justify-content: space-between;">
+  <div style="padding: 10px; zoom: 0.9; background-color: #f5f5f5; display: flex; justify-content: space-between;">
     <div>
+      <button class="btn" id="btnMenu"><i class="fas fa-bars"></i></button>
       <button class="btn" disabled id="btnBack"><i class="fas fa-arrow-left"></i></button>
       <span id="page_chart"></span>
       <button class="btn" disabled id="btnNext"><i class="fas fa-arrow-right"></i></button>
@@ -122,7 +123,7 @@
         document.getElementById('btnBack').disabled = bkpService.isFirst();
         document.getElementById('btnNext').disabled = bkpService.isLast();
         if (bkpService.items.length > 1) {
-          document.querySelector("#page_chart").innerHTML = `${bkpService.index+1}/${bkpService.items.length}`;          
+          document.querySelector("#page_chart").innerHTML = `${bkpService.index+1}/${bkpService.items.length}`;
         }
       }
 
@@ -171,8 +172,7 @@
 
         if (repositoryLink.links.length > 0) {
           links = repositoryLink.links;
-        }
-        else {
+        } else {
           links = data.filter(a => service.hasParentValid(a.parent)).map(a => {
             return {
               id: a.id,
@@ -227,11 +227,16 @@
         gantt.plugins({
           marker: true,
           tooltip: true,
-          drag_timeline: false,
-          drag_move: false,
+          drag_timeline: true,
+          drag_move: true,
           drag_resize: false,
           drag_progress: false
         });
+
+        gantt.config.order_branch = true; // Permite mover tarefas entre diferentes hierarquias
+        gantt.config.order_branch_free = true; // Permite mover tarefas sem restrições de hierarquia
+        gantt.config.drag_move = true; // Habilita o arrastar e soltar de tarefas para reordenamento
+
 
         gantt.attachEvent("onGanttReady", function() {
           var tooltips = gantt.ext.tooltips;
@@ -267,6 +272,19 @@
               return true;
             }
           },
+          {
+            name: "type",
+            type: "typeselect",
+            map_to: "type",
+            options: [{
+                key: "task",
+                label: "Task"
+              },
+              {
+                key: "project",
+                label: "Project"
+              }
+            ]},
           {
             name: "progress",
             height: 22,
@@ -456,16 +474,30 @@
 
         if (repositoryLink.hasChildren(id) && confirm("Recalcular as datas de todas as tarefas dependentes?")) {
           repository.resetChildren(repositoryLink.getAllChildren(id));
-        }
-        else {
+        } else {
           gantt.serialize().links.filter(a => a.source == id).forEach(a => {
-            const { start_date } = gantt.serialize().data.find(b => b.id == a.target);
-            repository.getOne(a.target).start_date = start_date.slice(0,10);
+            const {
+              start_date
+            } = gantt.serialize().data.find(b => b.id == a.target);
+            repository.getOne(a.target).start_date = start_date.slice(0, 10);
           })
         }
 
         updateGannttData();
         return true;
+      });
+
+      document.querySelector("#btnMenu").addEventListener("click", function() {
+        if (gantt.config.grid_width > 0) {
+          gantt.config.grid_width = 0;
+          document.querySelector("#btnMenu i").classList.replace("fa-bars", "fa-times");
+        }
+        else {
+          gantt.config.grid_width = 300;
+          document.querySelector("#btnMenu i").classList.replace("fa-times", "fa-bars");
+        }
+
+        gantt.render();
       });
 
       document.querySelector("#btnBack").addEventListener("click", function() {
@@ -510,7 +542,7 @@
 
         return true;
       });
-      gantt.attachEvent("onBeforeLinkDelete", function(id,link){
+      gantt.attachEvent("onBeforeLinkDelete", function(id, link) {
 
         if (repositoryLink.hasChildren(link.source) && confirm("Recalcular as datas dos antigos dependentes?")) {
           repository.resetChildren(repositoryLink.getAllChildren(link.source));
@@ -536,11 +568,11 @@
             const {activities = [], links = [], config = {}} = JSON.parse(e.target.result)
             repository.load(activities);
             repositoryLink.load(links);
-        
+
             config.workOnSaturday = config.workOnSaturday || false;
             config.workOnSunday = config.workOnSunday || false;
             config.workOnHoliday = config.workOnHoliday || false;
-            
+
             await syncService.save();
             window.location.reload();
           } catch (error) {
@@ -551,6 +583,10 @@
 
         // Limpa o valor do input para garantir que o evento 'change' seja disparado novamente
         event.target.value = '';
+      });
+
+      gantt.attachEvent("onAfterTaskMove", function(id, parent, tindex) {
+        repository.getOne(id).parent = parent;
       });
 
       function loadToggleCheckboxes() {
