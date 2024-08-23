@@ -149,6 +149,7 @@
           return {
             id: a.id,
             text: a.name,
+            type: a.type,
             start_date: new Date(a.start_date),
             duration: service.calculateDaysBetweenDates(new Date(a.start_date), new Date(a.end_date)) + 1,
             parent: service.getParentId(a.dependent_id),
@@ -219,7 +220,7 @@
 
           return `
               <b>Nome:</b> ${task.text}<br/>
-              <b>Início / Fim</b> ${start.toFormattedDate()} - ${end.toFormattedDate()}<br/>
+              <b>Início / Fim</b> ${start.toFormattedDateString(true)} - ${end.toFormattedDateString(true)}<br/>
               <b>Tempo de trabalho:</b> ${work_time} dia(s)
           `;
         };
@@ -272,6 +273,19 @@
               return true;
             }
           },
+          {
+            name: "type",
+            type: "typeselect",
+            map_to: "type",
+            options: [{
+                key: "task",
+                label: "Task"
+              },
+              {
+                key: "project",
+                label: "Project"
+              }
+            ]},
           {
             name: "progress",
             height: 22,
@@ -352,7 +366,7 @@
             label: "Start date",
             align: "center",
             template: function(obj) {
-              return obj.start_date.toFormattedDate();
+              return obj.start_date.toFormattedDateString(true);
             }
           },
           {
@@ -428,7 +442,7 @@
 
       gantt.attachEvent("onBeforeTaskDelete", function(id, task) {
         //any custom logic here
-        if (task.type == "project") {
+        if (task.id == 1000) {
           alertGantt("Projeto não pode ser excluído", "error", 3000);
           return false;
         }

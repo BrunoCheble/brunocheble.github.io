@@ -1,13 +1,9 @@
-Date.prototype.toFormattedDateString = function () {
-  return this.toISOString().split("T")[0];
-};
-
-Date.prototype.toFormattedDate = function (format_db = false) {
+Date.prototype.toFormattedDateString = function (format_br = false) {
   const dia = String(this.getDate()).padStart(2, "0"); // Pega o dia e garante que tenha 2 dígitos
   const mes = String(this.getMonth() + 1).padStart(2, "0"); // Pega o mês (0-11), por isso o +1, e garante 2 dígitos
   const ano = this.getFullYear(); // Pega o ano com 4 dígitos
 
-  return format_db ? `${ano}-${mes}-${dia}` : `${dia}/${mes}/${ano}`;
+  return format_br ? `${dia}/${mes}/${ano}` : `${ano}-${mes}-${dia}`;
 };
 
 const fake = [];
@@ -41,17 +37,12 @@ const bkpService = {
     return this.index == 0;
   },
   isLast: function () {
-    return (
-      this.items.length == 0 ||
-      this.items.length-1 == this.index
-    );
+    return this.items.length == 0 || this.items.length - 1 == this.index;
   },
   reset: function () {
     if (this.items.length == 10) {
       this.index = 0;
-      this.items = [
-        this.items[this.items.length - 1],
-      ];
+      this.items = [this.items[this.items.length - 1]];
     }
   },
 };
@@ -66,9 +57,7 @@ const repository = {
   activities: [],
 
   add: function (item) {
-    const start_date = new Date(
-      item.start_date.setDate(item.start_date.getDate() + 1)
-    );
+    const start_date = item.start_date;
 
     if (!start_date || start_date.getFullYear() == 1970) {
       return false;
@@ -78,6 +67,7 @@ const repository = {
       id: item.id,
       name: item.text,
       duration: item.duration,
+      type: item.type,
       late: 0,
       dependent_id: item.parent == 0 ? null : item.parent,
       start_date: start_date.toFormattedDateString(),
@@ -90,29 +80,27 @@ const repository = {
     return true;
   },
   update: function (item) {
-    const start_date = new Date(
-      item.start_date.setDate(item.start_date.getDate() + 1)
-    );
+    const start_date = item.start_date;
 
     if (!start_date || start_date.getFullYear() == 1970) {
       console.log("Invalid date", item);
       return false;
     }
 
-    const activity_index = this.activities.findIndex((a) => a.id == item.id);
+    const activity = this.activities.find((a) => a.id == item.id);
 
-    if (activity_index == -1) {
+    if (!activity) {
       console.log("Not found", item);
       return false;
     }
 
-    this.activities[activity_index].name = item.text;
-    this.activities[activity_index].duration = item.duration;
-    this.activities[activity_index].dependent_id = item.parent;
-    this.activities[activity_index].progress = item.progress;
-    this.activities[activity_index].start_date =
-      start_date.toFormattedDateString();
-    this.activities[activity_index].end_date = null;
+    activity.name = item.text;
+    activity.duration = item.duration;
+    activity.dependent_id = item.parent;
+    activity.progress = item.progress;
+    activity.type = item.type;
+    activity.start_date = start_date.toFormattedDateString();
+    activity.end_date = null;
 
     return true;
   },
@@ -239,10 +227,10 @@ const service = {
         .forEach((id) => {
           const child = allSteps.find((d) => d.id == id);
           if (
-            child.start_date == null ||
-            (child.org_start_date == null &&
-              child.end_date &&
-              child.end_date <= parent.end_date)
+            (child.start_date == null ||
+              (child.org_start_date == null &&
+                child.end_date &&
+                child.end_date <= parent.end_date))
           ) {
             child.start_date = this.getNextDateSkippingWeekends(
               parent.end_date,
@@ -266,11 +254,16 @@ const service = {
     };
 
     const project_start_date = new Date(
-      Math.min(...firstSteps.filter((a) => a.start_date).map((a) => new Date(a.start_date)))
+      Math.min(
+        ...firstSteps
+          .filter((a) => a.start_date)
+          .map((a) => new Date(a.start_date))
+      )
     );
-    
+
     firstSteps.forEach((parent) => {
-      parent.start_date = parent.start_date ?? project_start_date.toFormattedDate(true);
+      parent.start_date =
+        parent.start_date ?? project_start_date.toFormattedDateString();
       parent.end_date = this.getNextDateSkippingWeekends(
         parent.start_date,
         parent.duration + parent.late - 1,
@@ -347,7 +340,7 @@ const service = {
     return (
       !this.hasParentValid(item.parent) ||
       repository.getOne(item.parent).start_date <=
-        item.start_date.toFormattedDate(true)
+        item.start_date.toFormattedDateString()
     );
   },
   validateChangeByChild: function (item) {
@@ -357,13 +350,18 @@ const service = {
   download() {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(
-      new Blob([JSON.stringify({
-        activities: repository.activities,
-        links: repositoryLink.links,
-        config: config
-      })], {
-        type: "application/json",
-      })
+      new Blob(
+        [
+          JSON.stringify({
+            activities: repository.activities,
+            links: repositoryLink.links,
+            config: config,
+          }),
+        ],
+        {
+          type: "application/json",
+        }
+      )
     );
     a.download = "data.json";
     a.click();
@@ -469,7 +467,7 @@ const syncService = {
 
         repository.load(activities);
         repositoryLink.load(links);
-        
+
         config.workOnSaturday = config.workOnSaturday || false;
         config.workOnSunday = config.workOnSunday || false;
         config.workOnHoliday = config.workOnHoliday || false;
