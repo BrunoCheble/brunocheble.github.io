@@ -422,6 +422,10 @@
       gantt.attachEvent("onLightbox", function(task_id) {
         const activity = repository.getOne(task_id);
 
+        if (document.querySelector('[value="milestone"]')) {
+          document.querySelector('[value="milestone"]').remove();
+        }
+
         // Custom logic to run after the lightbox is opened
         const duration = document.querySelector(".gantt_duration input.gantt_duration_value");
 
